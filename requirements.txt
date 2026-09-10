@@ -1,0 +1,627 @@
+G1
+Emergency Medical History Intelligence Platform
+Master PRD + TRD + App Flow + UI/UX Brief + Backend Schema + Implementation Plan
+
+Core principle: G1 does not diagnose, prescribe, or recommend treatment. It reconstructs and summarizes existing, authorized medical information into a fast, evidence-linked brief for clinical use.
+
+Version 1.0 • September 2026
+
+1. Executive Summary
+G1 is a privacy-first healthcare web application intended to help authorized clinicians understand a patient's critical medical history quickly, especially in time-sensitive or emergency settings. The system accepts authorized medical records such as discharge summaries, prescriptions, diagnostic reports, laboratory reports, and hospital records; reconstructs a longitudinal clinical history; detects conflicts and uncertainty; and presents an evidence-linked brief.
+The product is built around three primary users: Patient, Doctor, and Hospital. Patients control access and consent, doctors consume the evidence-linked brief, and hospitals govern verified users, policies, integrations, and audits. G1 is planned as an ABDM-compatible HIU-side intelligence layer rather than a replacement for ABHA/ABDM or a central health-record repository.
+ABDM alignment from the uploaded guidelines: M1 covers ABHA creation/capture/verification, M2 covers HIP services, and M3 covers HIU services for viewing a patient's medical history with complete consent. For G1, M3 is the strategically important integration milestone; M1 may be used where needed, while M2 is not required for the first version unless G1 later becomes a record-issuing/sharing system.
+
+2. Problem Statement
+Emergency clinicians often have limited time to review long, fragmented, repetitive, and inconsistent medical histories.
+Relevant information may be distributed across hospitals, labs, prescriptions, PDFs, scanned images, and structured digital records.
+Critical facts such as allergies, current medications, major procedures, implants, or recent abnormalities can be buried in unrelated information.
+A generic AI summary is unsafe if it cannot prove where each clinical statement came from or if it silently resolves conflicting records.
+ABDM enables consent-driven health information exchange, but clinicians still need a fast interpretation layer to understand the retrieved records.
+3. Product Goals and Non-Goals
+Goals
+Non-Goals
+Reconstruct authorized medical history
+Autonomous diagnosis
+Generate a concise emergency-focused brief
+Treatment recommendation
+Link every displayed fact to evidence
+Medicine/prescription generation
+Detect conflicts, negation, uncertainty, and stale facts
+Doctor ranking
+Enforce consent, role, purpose, and time-bound access
+Replacing ABDM/ABHA
+Support real-time/dynamic integration with ABDM/HMIS where available
+Using static JSON as a production data source
+
+4. Users and Permissions
+4.1 Patient
+Create and manage account/profile.
+Link or verify ABHA where supported by the selected integration flow.
+Upload medical records.
+Review extracted history and patient-declared information.
+Grant, deny, revoke, and inspect consent/access requests.
+View active, expired, and revoked access.
+View audit/access history.
+Maintain an emergency profile without overwriting clinical evidence.
+4.2 Doctor
+Authenticate as a verified clinician under a hospital/organization.
+Request access to a patient's G1 brief within a permitted purpose.
+View 10-second, 30-second, and detailed clinical history views.
+Open original source evidence for every fact.
+View conflicts, uncertainty, and record coverage.
+Flag incorrect or ambiguous facts without modifying original source records.
+Add clinical annotations where the hospital workflow permits.
+4.3 Hospital
+Manage verified clinicians, departments, affiliations, and access policies.
+Manage ABDM/HMIS integrations and organization-level configuration.
+Monitor consent workflows and audit/security events.
+Separate administrative privileges from clinical-data viewing privileges.
+Configure retention, compliance, operational, and incident-response policies.
+Access control must not rely only on the user's role. G1 should combine RBAC with contextual/attribute-based checks such as hospital affiliation, purpose, active consent, consent scope, and consent expiry.
+
+5. Functional Requirements (PRD)
+Module
+Requirement
+Authentication & Identity
+Patient/doctor/hospital login, MFA-ready flows, account verification, session management, identity separation.
+ABHA/ABDM Integration
+Support current ABDM Sandbox/API flows for identity, consent, record discovery, and HIU-side retrieval. No hard-coded legacy endpoints.
+Medical Record Intake
+Accept PDFs, images, prescriptions, discharge summaries, diagnostics, laboratory reports, and supported structured records.
+Clinical Fact Extraction
+Extract conditions, allergies, medications, procedures, implants, hospitalizations, observations, abnormal findings, and dates.
+Negation & Uncertainty
+Differentiate present, absent, ruled-out, historical, suspected, and family-history statements.
+Timeline Reconstruction
+Build a deduplicated longitudinal timeline with first-seen/latest-seen and active/historical status.
+Conflict Detection
+Surface disagreements such as allergy conflict, medication dose/status conflict, blood-group conflict, or diagnosis disagreement.
+Evidence Provenance
+Every confirmed fact links to source document/resource, page/section/text span, timestamp/date, and confidence.
+Emergency Brief
+Produce a 10-second critical view, 30-second structured brief, and detailed evidence view.
+Consent & Access
+Support request, grant, deny, expiry, revocation, record-type scope, date range, and purpose.
+Audit & Security
+Record who accessed which patient, what data, when, why, and under which authorization/consent.
+Hospital Administration
+Manage doctors, departments, policies, ABDM/HMIS connection status, and security events.
+Dynamic Data Refresh
+Use live/real-time sources wherever available. Recompute or refresh the brief when new authorized records arrive.
+
+6. Non-Functional Requirements
+Area
+Requirement
+Performance
+Cached authorized brief should display in under 2 seconds under normal operating conditions. New documents may process asynchronously without blocking access to previously processed data.
+Availability
+Use resilient services, health checks, retry/backoff, queue durability, and defined recovery behavior.
+Security
+TLS, encryption at rest, KMS/HSM-ready key management, MFA, least privilege, rate limiting, audit logging, tenant isolation, and protected deployment zones.
+Privacy
+Data minimization, purpose limitation, consent enforcement, identity/clinical separation, configurable retention and deletion.
+Scalability
+Stateless APIs, asynchronous document processing, queues, horizontal scaling, object storage, and indexed clinical search.
+Usability
+Responsive design, consistent color/layout, intuitive navigation, accessible forms, error states, and clear evidence/consent status.
+Data Quality
+No confirmed fact without evidence; uncertain or conflicting data must remain visibly uncertain/conflicting.
+Interoperability
+Support ABDM-compatible health information exchange and FHIR-oriented normalization.
+Observability
+Structured logs, traces, metrics, model/extractor version tracking, queue monitoring, and security alerting.
+
+7. Application Flow
+7.1 Patient Flow
+Patient Login / Registration
+Profile + ABHA status
+Upload records or authorize ABDM-linked retrieval
+Review consent request and scope
+Records ingested and processed
+G1 history + brief updated
+Manage active/revoked/expired access
+View access/audit history
+
+7.2 Doctor Flow
+Doctor Login
+Hospital/Professional authorization check
+Search/select patient within permitted workflow
+Request or validate active consent
+Open 10-second critical view
+Open 30-second emergency brief
+Inspect timeline/conflicts/evidence
+Flag issue or add clinical annotation
+
+7.3 Hospital Flow
+Hospital Admin Login
+Manage departments + verified users
+Configure access policy + integrations
+Monitor consent/access workflow
+Review audit/security events
+Manage retention, incident and compliance settings
+
+8. UI/UX Brief
+The visual system should be clinical, calm, and information-dense without feeling crowded. Use one primary accent color, neutral backgrounds, strong contrast, clear spacing, and consistent status colors. Avoid decorative dashboards that compete with urgent clinical information.
+Surface
+Primary Navigation
+Key UI
+Patient
+Home • Records • G1 Brief • Consent & Access • Access History • Privacy
+Record cards, upload status, consent cards, emergency profile, access timeline.
+Doctor
+Patient Brief • Timeline • Medications • Allergies • Conflicts • Evidence
+Critical banner, 10-second view, 30-second brief, source drawer, conflict chips, confidence labels.
+Hospital
+Overview • Doctors • Departments • Integrations • Policies • Audit • Security
+Organization metrics, user verification, integration health, access logs, incident alerts.
+
+8.1 Doctor Emergency Screen
+Top bar: patient identity, age/sex, consent status, source coverage, last update.
+Critical strip: allergies, high-risk medications, major conditions, implants, recent major events.
+30-second brief: structured sections, not one long paragraph.
+Evidence button beside every fact.
+Conflict/uncertainty banner whenever records disagree.
+Timeline below the brief, ordered by event date.
+No hidden AI confidence; confidence and coverage should be visible.
+8.2 Responsive Behavior
+Desktop: two-column doctor view with brief on the left and evidence/source panel on the right.
+Tablet: collapsible evidence panel.
+Mobile: stacked cards, sticky critical-summary header, bottom-sheet evidence viewer.
+Navigation should remain consistent across screen sizes and avoid hidden essential actions.
+8.3 Form & Input Validation
+Validate file type, size, MIME type, duplicate files, and suspicious uploads.
+Validate identity fields and ABHA-related inputs using the active integration specification.
+Use server-side validation even when client-side validation exists.
+Prevent empty/over-broad consent requests; require purpose, scope, and validity.
+Use structured error messages that tell the user how to correct invalid input.
+9. Technical Requirements Document (TRD)
+9.1 Proposed Technology Stack
+Layer
+Recommended Technology
+Frontend
+React / Next.js + TypeScript + Tailwind CSS + accessible component library
+Backend API
+FastAPI or NestJS; choose one team-standard stack and keep APIs typed and versioned
+Primary DB
+PostgreSQL
+Queue / Async
+Redis + Celery/RQ for Python stack, or Redis/BullMQ for Node stack
+Object Storage
+Encrypted S3-compatible object storage in India region
+Search
+PostgreSQL FTS initially; OpenSearch later only if needed
+Clinical Interop
+FHIR-oriented internal models; adapters for ABDM/HMIS payloads
+AI
+Private/local model inference; deterministic extraction first, LLM last
+Observability
+OpenTelemetry + structured logs + metrics/dashboard
+Deployment
+India-region VPC/private subnets; containerized services; staging separated from production
+
+9.2 Client-Server and Backend Service Architecture
+G1 primarily follows a client-server architecture. The responsive Patient, Doctor, and Hospital web clients communicate with the server over secure HTTPS APIs. The server contains application logic, consent enforcement, ABDM/HMIS integration, clinical processing, AI services, audit functions, and secure data access. Within the server, modules are separated by clear service boundaries so that the system can begin as a modular monolith and later extract high-load components into independent services if required.
+Architecture classification: Overall = Client-Server; application structure = Three-Tier; backend organization = Modular Service-Oriented; background processing = Event-Driven/Asynchronous; healthcare interoperability = FHIR/ABDM; security = Zero-Trust and privacy-segregated data architecture.
+Architecture View
+G1 Usage
+Client-Server
+Primary system architecture. Web clients call authenticated backend APIs over HTTPS.
+Three-Tier
+Presentation layer, application/service layer, and data/storage layer.
+Modular Service-Oriented
+Auth, Consent, ABDM Adapter, Document, Clinical, Evidence, AI, Audit and Notification modules have explicit boundaries.
+Event-Driven / Asynchronous
+Document parsing, OCR, record synchronization, ABDM callbacks, brief refresh and notifications are handled through queues/events.
+FHIR / ABDM Interoperability
+Clinical data is normalized into FHIR-oriented internal models and exchanged through supported ABDM/HMIS interfaces.
+Zero-Trust Security
+Every user, service, and request is authenticated and authorized; the internal network is not treated as inherently trusted.
+Service
+Responsibilities
+Auth Service
+Login, MFA, sessions, token lifecycle, user role/context.
+Identity Service
+PII/ABHA references and internal patient UUID mapping.
+Consent Service
+Consent request, grant/deny/revoke/expiry, policy enforcement.
+ABDM Adapter
+Sandbox/production APIs, callbacks, retries, request correlation, schema/version handling.
+Document Service
+Upload validation, encryption, storage, metadata, deduplication.
+Clinical Parser
+OCR/document parsing, FHIR ingestion, section extraction.
+Clinical Normalizer
+Map entities to normalized conditions/medications/observations/procedures.
+Timeline Engine
+Deduplication, temporal ordering, active/historical state.
+Conflict Engine
+Detect contradictory clinical facts and preserve unresolved state.
+Evidence Service
+Create and resolve source pointers for every clinical fact.
+AI Summary Service
+Generate concise readable brief from structured, authorized facts only.
+Claim Validator
+Reject unsupported model output before presentation.
+Audit Service
+Immutable append-only access and security events.
+Notification Service
+Consent notifications, access expiry, processing completion, security alerts.
+
+10. Backend Data Model / Schema
+10.1 Data Domains
+Store
+Contains
+DB_Identity
+user_id, patient_uuid mapping, name, DOB, contact, ABHA references, account status
+DB_Clinical
+clinical facts, conditions, allergies, medications, procedures, observations, timeline events, conflicts
+DB_Consent
+consent requests, artefacts/references, purpose, scope, date range, validity, revocation
+DB_Audit
+access events, security events, consent events, actor, purpose, timestamp, request correlation
+Encrypted Object Storage
+original documents, normalized files, evidence artifacts where retention permits
+
+10.2 Core Entities
+Entity
+Key Fields
+User
+id, type, email/mobile, auth_status, created_at
+PatientProfile
+patient_uuid, identity_ref, emergency_profile_status
+DoctorProfile
+user_id, professional_ref, hospital_affiliation, status
+Hospital
+id, facility_ref, name, status
+HospitalMembership
+hospital_id, user_id, department, role, permissions
+MedicalDocument
+id, patient_uuid, source_type, source_ref, mime_type, hash, received_at, status
+ClinicalFact
+id, patient_uuid, fact_type, normalized_code, value, status, certainty, effective_date
+EvidencePointer
+fact_id, document_id/resource_id, page/section/path/span, source_hash
+Condition
+patient_uuid, code, display, status, first_seen, last_seen
+Allergy
+patient_uuid, substance, status, severity_if_stated, source_count
+Medication
+patient_uuid, ingredient, dose, route, status, effective_period
+Procedure
+patient_uuid, type, date, body_site, device_if_any
+Observation
+patient_uuid, code, value, unit, reference_range, observed_at
+TimelineEvent
+patient_uuid, event_type, event_date, fact_refs
+Conflict
+patient_uuid, conflict_type, fact_refs, status, resolution_note
+Consent
+id, patient_uuid, requester, purpose, scope, from_date, to_date, valid_until, status
+AccessGrant
+consent_id, actor_id, hospital_id, permissions, expires_at
+ClinicalAnnotation
+doctor_id, patient_uuid, target_fact, note, created_at
+AuditEvent
+actor, patient_uuid, action, purpose, consent_id, timestamp, metadata
+
+10.3 Data Integrity Rules
+Identity data and clinical data are joined only by an internal randomized patient UUID/reference.
+Clinical facts cannot be promoted to CONFIRMED unless at least one valid evidence pointer exists.
+Conflicting facts remain independent and are grouped by a Conflict record; the system does not overwrite one with the other.
+Consent/access validity is checked server-side before every protected clinical read.
+Original source hashes are stored to detect tampering and enable provenance verification.
+Production must use dynamic source connectors and event/callback-based refresh where available; static JSON is limited to fixtures, demos, and unit tests.
+11. Secure Clinical NLP and AI Pipeline
+Authorized Document / FHIR Record
+Input validation + malware scanning + decryption in trusted boundary
+OCR / structured parser
+Medical entity extraction
+Negation + uncertainty + context detection
+Normalization + deduplication
+Timeline reconstruction
+Conflict detection
+Evidence graph
+Emergency relevance selection
+Private/local LLM generates readable brief
+Claim validator checks every claim against evidence
+Approved brief stored/cached securely
+
+11.1 AI Safety Rules
+The LLM cannot create new clinical facts; it may only verbalize structured facts that already have evidence.
+No unsupported claim is displayed as a fact.
+No diagnosis, prescription, treatment recommendation, or doctor ranking is generated.
+Model/extractor/prompt versions are logged for each generated brief.
+Model updates require benchmark evaluation and controlled rollout.
+Identifiable health records are not sent to general-purpose external AI services by default.
+Training on patient clinical records is disabled unless a future, separately governed, legally valid program explicitly permits it.
+12. ABDM / Government Integration Plan
+The uploaded ABDM HIP/HIU guideline describes HIPs as healthcare providers that create/store/share records and HIUs as entities that access a patient's health records with informed consent. It also states that NHA does not centrally store patient health records; the records remain with the respective HIPs and are exchanged through the HIE-CM/Gateway.
+ABDM Element
+G1 Usage
+ABHA
+Patient identity/linking where supported and required by the selected workflow.
+HPR
+Professional identity/reference for clinician verification where supported.
+HFR
+Facility identity/reference for hospital verification where supported.
+HIE-CM / Consent
+Patient-controlled consent for purpose, scope, duration, and revocation.
+HIP
+External hospitals/labs/clinics that provide source health records.
+HIU
+Primary G1-side role for authorized retrieval/view of patient medical history.
+M1
+Use if G1/hospital workflow needs ABHA creation/capture/verification.
+M2
+Not required for G1 V1 unless G1 becomes a record-issuing/sharing HIP.
+M3
+Primary milestone for G1's HIU use case.
+
+Important: exact endpoint names, purpose codes, consent tags, and API versions must be taken from the current ABDM Sandbox v3 documentation at implementation time. Do not hard-code legacy /v1 or v0.5 endpoints from older examples.
+
+13. API Design
+Illustrative internal API surface; actual ABDM endpoints remain in the dedicated adapter.
+Method
+Route
+Purpose
+POST
+/auth/login
+Authenticate user
+GET
+/patients/{id}/brief
+Get authorized G1 brief
+GET
+/patients/{id}/timeline
+Get longitudinal timeline
+GET
+/patients/{id}/conflicts
+Get unresolved/known conflicts
+GET
+/facts/{id}/evidence
+Get evidence pointer and source preview
+POST
+/documents
+Upload patient-authorized document
+GET
+/documents/{id}/status
+Processing status
+POST
+/consents/requests
+Create consent request
+POST
+/consents/{id}/grant
+Grant consent
+POST
+/consents/{id}/revoke
+Revoke consent
+GET
+/audit/me
+Patient/user access history
+POST
+/doctors/{id}/annotations
+Create clinical annotation
+POST
+/integrations/abdm/callback
+Receive ABDM async callback/webhook
+GET
+/integrations/abdm/health
+Integration health/status
+
+13.1 Dynamic Data Policy
+ABDM/HMIS/clinical integrations are queried or refreshed according to authorized, supported flows.
+Callbacks/webhooks/events trigger asynchronous ingestion instead of periodic static file replacement where possible.
+UI status should display source freshness and last successful sync.
+When a live source is unavailable, show 'temporarily unavailable' or 'stale' rather than silently substituting cached data.
+Static JSON is permitted only for prototyping, fixtures, automated tests, and sandbox simulation.
+14. Security, Privacy, and Compliance Design
+Control
+Design
+Data Residency
+Deploy sensitive production services and storage in an India region, subject to current legal/contractual requirements.
+Encryption
+TLS in transit; strong encryption at rest; KMS/HSM-managed keys; key rotation policy.
+Least Privilege
+RBAC + ABAC, separate admin and clinical permissions, service-to-service identities.
+Consent Enforcement
+Purpose, scope, validity, record type, date range, and revocation checks at API layer.
+Audit
+Append-only tamper-evident event logging for clinical access, consent changes, and security events.
+Tenant Isolation
+Hospital tenants isolated logically; no cross-hospital access without explicit authorized flow.
+PII Minimization
+Identity vault separated from clinical store; AI operates on pseudonymized context where possible.
+Dev/Prod Separation
+Separate development, staging, and production accounts/networks/data.
+Incident Response
+Alerting, evidence preservation, containment, notification, recovery, and post-incident review.
+Retention
+Follow consent artefact, applicable retention requirements, and documented deletion workflows.
+
+The uploaded Sandbox enabling framework emphasizes privacy/data protection, secure storage and access, transaction security, audit, protected server zones, firewalls/IDS/IPS, encryption, separate development/staging/production practices, and logging. It also states that sandbox participation does not remove legal liability or replace later regulatory approvals.
+14.1 High-Assurance Privacy & Security Architecture
+For G1, standard healthcare security is not sufficient. The production architecture should follow a high-assurance design in which compromise of a single account, service, database, or AI component is not enough to expose both a patient identity and the complete clinical history. Security controls must be enforced at the identity, network, application, data, integration, AI, and operational layers.
+High-Assurance Control
+Required Design
+Zero-trust service access
+Mutual service identity, short-lived credentials, authorization on every call, no implicit trust based on network location.
+Identity / clinical segregation
+Direct identifiers live in an Identity Vault; clinical facts live in a Clinical Vault; linkage uses an internal randomized Patient_UUID.
+Field-level protection
+Tokenize or encrypt high-value identifiers such as ABHA references, mobile, email, DOB and other direct identifiers where operationally feasible.
+Key isolation
+Use KMS/HSM-managed keys with rotation, strict access policies, and tenant/patient-level key separation where feasible.
+Just-in-time access
+Prefer time-bound clinician access derived from current role, affiliation, purpose, consent scope and expiry rather than permanent broad access.
+Privileged access management
+Platform and infrastructure administrators use separate privileged accounts, MFA, approval workflows and session logging.
+Tamper-evident audit
+Use append-only/WORM-capable storage or cryptographic hash chaining for sensitive audit records.
+No PHI in telemetry
+Never place health data in URLs, analytics events, crash reporting, generic logs, traces or third-party monitoring payloads.
+DLP and bulk-read detection
+Detect abnormal exports, unusual query volume, bulk patient access and suspicious cross-tenant activity.
+Secure sessions
+Short-lived access tokens, refresh-token rotation, device/session revocation, secure cookies and replay protections.
+Signed integrations
+ABDM/HMIS callbacks and webhooks must be authenticated, signed where supported, correlation-checked and protected against replay.
+Hardened file ingestion
+MIME/content validation, malware scanning, size limits, decompression-bomb protection, parser isolation and defenses against malicious PDF/image payloads.
+AI context isolation
+Patient contexts, vector stores, caches and prompts must be isolated so one patient cannot influence or expose another patient context.
+Document prompt-injection defense
+Instructions embedded in uploaded medical documents are always treated as untrusted document content, never as system instructions.
+AI output enforcement
+Structured schema validation plus claim-to-evidence validation occurs before model output is visible to clinicians.
+Automated retention
+Retention and deletion workflows are tied to consent, legal obligations and explicit policy rather than manual cleanup.
+Secure SDLC
+SAST, DAST, dependency and container scanning, secret scanning, SBOM generation, patch SLAs and recurring VAPT.
+Break-glass governance
+Any emergency override, if later legally and operationally permitted, requires explicit justification, elevated logging, alerts and retrospective review. It must not be assumed in V1.
+14.2 Privacy-Preserving AI Processing Boundary
+The AI layer must never receive unrestricted access to the identity database. Identifiable source records are processed inside a trusted boundary; direct identifiers are minimized or pseudonymized before AI processing where clinically possible. The model receives only the authorized clinical context needed for the requested brief, and generated statements are checked against evidence before display.
+Identity Vault → Patient_UUID → Clinical Vault → Pseudonymized/Minimum-Necessary AI Context → Private Model → Schema Validator → Claim-to-Evidence Validator → Authorized Doctor UI
+High-assurance rule: No single compromised user, service, database, or AI component should be sufficient to expose both a patient's identity and complete clinical history.
+15. Validation and Testing Plan
+Category
+Tests
+Functional
+User role flows, upload, consent, revoke/expiry, brief generation, evidence links, conflicts, annotations, hospital policy.
+ABDM
+Current Sandbox flow tests, callbacks, retries, consent lifecycle, record exchange, error mappings.
+Clinical NLP
+Critical fact extraction, allergy/medication accuracy, negation, uncertainty, temporal extraction, conflict detection.
+Claim Safety
+Unsupported-claim detection, evidence coverage, adversarial prompts, model-output schema validation.
+Security
+Authentication, authorization bypass, IDOR, injection, file upload attacks, session/token issues, encryption, secret handling, audit integrity.
+Performance
+Brief retrieval latency, concurrent doctors, large documents, queue backpressure, database indexes.
+Resilience
+ABDM downtime, queue failure, parser failure, model timeout, partial data, stale cache, retry storms.
+UX
+Mobile/tablet/desktop, keyboard navigation, contrast, form validation, emergency scanning time.
+
+15.1 Proposed Engineering Targets
+Metric
+Initial Target
+Evidence linkage for displayed confirmed facts
+100%
+Unsupported clinical claims
+0 target
+Consent enforcement
+100%
+Unauthorized access rejection
+100%
+Critical fact recall
+>95% on controlled validation set
+Conflict detection recall
+>95% on controlled conflict test set
+Cached brief load
+<2 seconds typical
+Clinical brief generation
+Defined SLA based on document volume; asynchronous status shown
+
+These are proposed G1 engineering targets, not ABDM-mandated thresholds.
+Security validation for pilot readiness must additionally include tenant-isolation tests, privilege-escalation tests, bulk-export/DLP tests, token replay tests, malicious document/parser tests, ABDM callback replay tests, prompt-injection tests, model context-isolation tests, and tamper-evident audit verification.
+16. Implementation Plan
+Phase
+Weeks
+Deliverables
+1. Architecture & Trust Foundation
+1–2
+Threat model, data model, identity/clinical separation, RBAC+ABAC, consent model, FHIR strategy, dev/staging setup.
+2. ABDM Sandbox + Dynamic Integration
+3–5
+Sandbox onboarding, current v3 flows, M1 where needed, M3 HIU path, async callbacks, consent lifecycle, live integration status.
+3. Document/FHIR Ingestion
+6–7
+Secure upload, object storage, OCR/parser, FHIR adapter, provenance metadata, normalized clinical schema.
+4. Clinical Intelligence
+8–10
+NER, negation, uncertainty, normalization, timeline, conflicts, evidence graph.
+5. Private AI + Claim Validation
+11–12
+Private/local model, structured prompt/output, claim validator, model/version audit.
+6. Web App UI
+13–14
+Patient, doctor, hospital portals; responsive navigation; consent UI; brief/evidence/conflict views.
+7. QA + Clinical Validation
+15–17
+Automated tests, synthetic/de-identified cases, clinician review, adversarial cases, security testing.
+8. ABDM/Security Compliance Work
+18+
+Applicable functional evaluation, current security assessment/certification path, remediation.
+9. Controlled Hospital Pilot
+After readiness
+Limited, governed pilot with explicit scope, monitoring, clinician feedback, and rollback plan.
+10. Production
+After approvals
+Production keys, monitored rollout, support, incident response, model governance.
+
+16.1 Build Order
+Build identity, authorization, consent, audit, and storage before AI.
+Build dynamic record ingestion and provenance before summary generation.
+Build deterministic clinical extraction, timeline, conflict, and evidence layers.
+Add the private/local LLM only after structured facts are trustworthy.
+Add claim validation before any clinical brief is shown.
+Build doctor emergency view first, then patient consent/records UI, then hospital administration.
+Complete controlled validation before a real hospital pilot.
+17. MVP Scope
+Included in MVP
+Deferred
+Patient/Doctor/Hospital accounts
+Diagnosis or treatment support
+Secure document upload
+Public doctor search/booking
+Structured clinical extraction
+Medicine recommendations
+Timeline + conflict detection
+Full PHR replacement
+Evidence-linked G1 brief
+M2 HIP unless needed
+Consent/access workflow
+Insurance/claims
+Audit trail
+Cross-hospital production federation before sandbox validation
+ABDM Sandbox integration path
+Public production before security/clinical validation
+
+18. Deployment Architecture
+India-region VPC with public ingress only through API gateway/WAF.
+Application/API services in private subnets where possible.
+Managed PostgreSQL with encryption and private connectivity.
+Encrypted object storage with scoped service access.
+Private model inference endpoint not exposed publicly.
+Redis/queue service on private network.
+Separate dev, staging, sandbox-integration, and production environments.
+Central observability with sensitive-data redaction.
+Backups, tested restore procedure, key rotation, and disaster recovery runbook.
+19. Key Risks and Mitigations
+Risk
+Mitigation
+AI hallucination
+Structured facts first; evidence graph; claim validator; no unsupported facts.
+Wrong negation/uncertainty
+Dedicated detection rules/models; adversarial clinical validation.
+Stale or incomplete records
+Show source coverage, last sync, and partial-data warnings.
+Consent misuse
+Purpose/scope/time checks on every clinical read; revoke enforcement.
+Admin overreach
+Separate administrative and clinical privileges.
+Data breach
+Segregation, encryption, KMS, least privilege, monitoring, incident response.
+ABDM API change
+Dedicated versioned adapter; do not hard-code old endpoint versions into domain logic.
+Hospital workflow resistance
+Doctor-first UI, minimal clicks, cached brief, evidence-on-demand.
+Clinical overclaim
+Position as information reconstruction, not diagnosis/prescription/decision replacement.
+
+20. Source Basis and Compliance Notes
+This document is grounded in the two ABDM/NDHM documents supplied for the project: (1) Ayushman Bharat Digital Mission, Guidelines for Health Information Providers, Health Repository Providers, Health Information Users and Personal Health Records Apps, version dated 24 October 2022; and (2) NDHM Sandbox Enabling Framework V1.0, dated 18 August 2020.
+The 2022 HIP/HIU guideline states that ABDM provides interoperability building blocks; identifies HIP, HIU, HIE-CM, HPR and HFR roles; describes patient-controlled consent; states that health records remain with the respective HIP rather than being centrally stored by NHA; and defines M1/M2/M3 integration milestones.
+The 2020 Sandbox framework is older and should be treated as historical guidance for security, testing, sandbox process, and certification concepts. Current ABDM Sandbox v3 documentation and current NHA/MeitY/legal requirements must be checked before implementation or production onboarding.
+Final product rule: if G1 cannot prove where a clinical statement came from, it must not present that statement as a confirmed fact.
+

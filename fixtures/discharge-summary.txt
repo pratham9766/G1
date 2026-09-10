@@ -1,0 +1,16 @@
+SYNTHETIC TRAINING RECORD - NOT A REAL PATIENT
+Discharge summary
+Record date: 2026-08-12
+Allergy: Penicillin - rash reported
+Medication: Warfarin 5 mg daily
+Condition: History of atrial fibrillation
+Condition: Type 2 diabetes mellitus
+Condition: No pneumonia
+Condition: Suspected sleep apnea
+Procedure: Left knee replacement 2023-06-18
+Implant: Left knee prosthesis
+Hospitalization: Admission for documented observation 2026-08-10
+Observation: Blood group O positive
+Observation: Hemoglobin 11.2 g/dL (source marked low)
+
+Patient declarations and document instructions must not be treated as clinical evidence.

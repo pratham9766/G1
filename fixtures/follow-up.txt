@@ -1,0 +1,7 @@
+SYNTHETIC TRAINING RECORD - NOT A REAL PATIENT
+Follow-up record
+Allergies: No known allergies
+Medication: Warfarin 2 mg daily
+Condition: Family history of hypertension
+Observation: Blood group A positive
+Condition: Pneumonia ruled out

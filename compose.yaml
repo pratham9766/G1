@@ -1,0 +1,48 @@
+# Local infrastructure only. Production startup is intentionally gated in server/main.ts.
+services:
+  app:
+    build: .
+    ports: ["127.0.0.1:3001:3001"]
+    environment:
+      NODE_ENV: development
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://g1:local-development-only@postgres:5432/g1
+      REDIS_URL: redis://redis:6379
+      DATA_DIR: /app/data
+      APP_ORIGIN: http://localhost:3001
+    volumes: ["g1-data:/app/data"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    restart: unless-stopped
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      {
+        POSTGRES_DB: g1,
+        POSTGRES_USER: g1,
+        POSTGRES_PASSWORD: local-development-only,
+      }
+    volumes: ["postgres-data:/var/lib/postgresql/data"]
+    healthcheck:
+      {
+        test: ["CMD-SHELL", "pg_isready -U g1"],
+        interval: 5s,
+        timeout: 3s,
+        retries: 10,
+      }
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: ["redis-data:/data"]
+    healthcheck:
+      {
+        test: ["CMD", "redis-cli", "ping"],
+        interval: 5s,
+        timeout: 3s,
+        retries: 10,
+      }
+volumes:
+  g1-data:
+  postgres-data:
+  redis-data:

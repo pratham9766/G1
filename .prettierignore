@@ -1,0 +1,9 @@
+node_modules
+dist
+data
+.npm-cache
+artifacts
+test-results
+playwright-report
+requirements.txt
+package-lock.json
