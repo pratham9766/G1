@@ -13,7 +13,8 @@ import { resolve } from "node:path";
 import { ApiController } from "./controller";
 import { authenticate } from "./auth";
 import { store } from "./store";
-import { production } from "./security";
+import { configureHostedDemo } from "./hosted-config";
+import { hostedDemo, production } from "./security";
 import { startProcessing, stopProcessing } from "./ingestion";
 import { WorkflowController } from "./workflow/controller";
 import { startWorkflow, stopWorkflow } from "./workflow/service";
@@ -24,11 +25,31 @@ export async function bootstrap(port = Number(process.env.PORT || 3001)) {
     throw new Error(
       "Production is intentionally gated pending independent vault identities, KMS, isolated parsers, verified integrations and clinical/security validation. See docs/WORK_STATUS.md.",
     );
+  if (hostedDemo) configureHostedDemo();
   await store.init();
+  if (hostedDemo) await (await import("./workflow/seed")).seedWorkflow();
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: ["error", "warn"],
     rawBody: true,
     bodyParser: false,
+  });
+  if (hostedDemo) app.set("trust proxy", 1);
+  app.use((req: any, res: any, next: any) => {
+    if (
+      hostedDemo &&
+      req.method === "POST" &&
+      [
+        "/api/v1/auth/register",
+        "/api/v1/documents",
+        "/api/v1/integrations/hmis/callback",
+        "/api/v1/integrations/abdm/callback",
+      ].includes(req.path.toLowerCase().replace(/\/+$/, ""))
+    )
+      return res.status(403).json({
+        message:
+          "Hosted synthetic demo: registration, external uploads and integration callbacks are disabled. Use the seeded accounts and mock retrieval.",
+      });
+    next();
   });
   app.use(
     helmet({
@@ -93,12 +114,16 @@ export async function bootstrap(port = Number(process.env.PORT || 3001)) {
     try {
       const path = req.path;
       const origin = req.headers.origin;
-      const permitted = new Set([
-        process.env.APP_ORIGIN || "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        `http://localhost:${port}`,
-        `http://127.0.0.1:${port}`,
-      ]);
+      const permitted = new Set(
+        hostedDemo
+          ? [process.env.APP_ORIGIN!]
+          : [
+              process.env.APP_ORIGIN || "http://localhost:5173",
+              "http://127.0.0.1:5173",
+              `http://localhost:${port}`,
+              `http://127.0.0.1:${port}`,
+            ],
+      );
       if (
         !["GET", "HEAD", "OPTIONS"].includes(req.method) &&
         origin &&
@@ -145,9 +170,10 @@ export async function bootstrap(port = Number(process.env.PORT || 3001)) {
   }
   await startProcessing();
   startWorkflow();
-  await app.listen(port, process.env.HOST || "127.0.0.1");
+  const host = process.env.HOST || (hostedDemo ? "0.0.0.0" : "127.0.0.1");
+  await app.listen(port, host);
   console.log(
-    `G1 running at http://localhost:${port} (development; synthetic data only)`,
+    `G1 running at http://${host}:${port} (development; synthetic data only)`,
   );
   return app;
 }

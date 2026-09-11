@@ -17,6 +17,7 @@ import {
   passwordHash,
   passwordMatches,
   production,
+  hostedDemo,
   token,
 } from "./security";
 import type { Entity, User } from "./types";
@@ -27,7 +28,7 @@ export type AuthRequest = Request & {
 };
 const cookies = {
   httpOnly: true,
-  secure: production,
+  secure: production || hostedDemo,
   sameSite: "strict" as const,
   path: "/api",
 };
