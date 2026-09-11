@@ -1,0 +1,135 @@
+{
+  "records": [
+    {
+      "id": "allergy-1",
+      "name": "Allergy record (SYNTHETIC)",
+      "mime": "text/plain",
+      "recordType": "discharge",
+      "date": "2026-09-02",
+      "informationScopes": [
+        "allergies"
+      ],
+      "content": "DEMO / SYNTHETIC DATA\nAllergy: Penicillin - rash reported",
+      "encoding": "utf8",
+      "source": "G1 Demo HIP"
+    },
+    {
+      "id": "meds",
+      "name": "Prescription (SYNTHETIC)",
+      "mime": "text/plain",
+      "recordType": "prescription",
+      "date": "2026-09-02",
+      "informationScopes": [
+        "medications"
+      ],
+      "content": "DEMO / SYNTHETIC DATA\nMedication: Warfarin 5 mg daily\nMedication: Metformin 500 mg daily",
+      "encoding": "utf8",
+      "source": "G1 Demo HIP"
+    },
+    {
+      "id": "diagnosis",
+      "name": "Condition history (SYNTHETIC)",
+      "mime": "text/plain",
+      "recordType": "hospital",
+      "date": "2026-09-02",
+      "informationScopes": [
+        "diagnoses"
+      ],
+      "content": "DEMO / SYNTHETIC DATA\nCondition: Type 2 diabetes mellitus\nCondition: History of atrial fibrillation\nCondition: Suspected sleep apnea",
+      "encoding": "utf8",
+      "source": "G1 Demo HIP"
+    },
+    {
+      "id": "lab-a",
+      "name": "Laboratory report A (SYNTHETIC)",
+      "mime": "text/plain",
+      "recordType": "laboratory",
+      "date": "2026-09-02",
+      "informationScopes": [
+        "labs"
+      ],
+      "content": "DEMO / SYNTHETIC DATA\nObservation: Blood group B positive\nObservation: Hemoglobin 11.2 g/dL (source marked low)\nObservation: Pulse 76 /min",
+      "encoding": "utf8",
+      "source": "G1 Demo HIP"
+    },
+    {
+      "id": "lab-b",
+      "name": "Laboratory report B (SYNTHETIC)",
+      "mime": "text/plain",
+      "recordType": "laboratory",
+      "date": "2026-09-02",
+      "informationScopes": [
+        "labs"
+      ],
+      "content": "DEMO / SYNTHETIC DATA\nObservation: Blood group O positive",
+      "encoding": "utf8",
+      "source": "G1 Demo HIP"
+    },
+    {
+      "id": "encounter",
+      "name": "Hospital encounter (SYNTHETIC)",
+      "mime": "text/plain",
+      "recordType": "hospital",
+      "date": "2026-09-02",
+      "informationScopes": [
+        "encounters"
+      ],
+      "content": "DEMO / SYNTHETIC DATA\nHospitalization: Observation admission 2026-09-01",
+      "encoding": "utf8",
+      "source": "G1 Demo HIP"
+    },
+    {
+      "id": "procedure",
+      "name": "Surgical history (SYNTHETIC)",
+      "mime": "text/plain",
+      "recordType": "hospital",
+      "date": "2026-09-02",
+      "informationScopes": [
+        "procedures"
+      ],
+      "content": "DEMO / SYNTHETIC DATA\nProcedure: Left knee replacement 2024-06-18\nImplant: Left knee prosthesis",
+      "encoding": "utf8",
+      "source": "G1 Demo HIP"
+    },
+    {
+      "id": "immunization",
+      "name": "Immunization history (SYNTHETIC)",
+      "mime": "text/plain",
+      "recordType": "hospital",
+      "date": "2026-09-02",
+      "informationScopes": [
+        "immunizations"
+      ],
+      "content": "DEMO / SYNTHETIC DATA\nImmunization: Influenza vaccine recorded 2026-08-12",
+      "encoding": "utf8",
+      "source": "G1 Demo HIP"
+    },
+    {
+      "id": "imaging",
+      "name": "Imaging report (SYNTHETIC)",
+      "mime": "text/plain",
+      "recordType": "diagnostic",
+      "date": "2026-09-02",
+      "informationScopes": [
+        "imaging"
+      ],
+      "content": "DEMO / SYNTHETIC DATA\nObservation: Chest radiograph - no focal consolidation stated",
+      "encoding": "utf8",
+      "source": "G1 Demo HIP"
+    },
+    {
+      "id": "discharge",
+      "name": "Discharge summary (SYNTHETIC)",
+      "mime": "text/plain",
+      "recordType": "discharge",
+      "date": "2026-09-02",
+      "informationScopes": [
+        "discharge-summaries",
+        "encounters"
+      ],
+      "content": "DEMO / SYNTHETIC DATA\nHospitalization: Discharge following observation 2026-09-02",
+      "encoding": "utf8",
+      "source": "G1 Demo HIP"
+    }
+  ]
+}

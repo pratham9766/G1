@@ -43,6 +43,15 @@ import {
   RECORD_TYPES,
   PURPOSES,
 } from "./types";
+import { requireDoctorTrust } from "./workflow/trust";
+import {
+  decideConsent,
+  handleWebhook,
+  auditWorkflow,
+  connectionView,
+} from "./workflow/service";
+import { abdmMode } from "./workflow/adapters";
+import { aiProvider } from "./workflow/ai";
 const date = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -91,7 +100,8 @@ export class ApiController {
       status: "ok",
       environment: production ? "production" : "development",
       clinicalValidation: "not-validated",
-      abdm: "not-configured",
+      abdm:
+        abdmMode() === "mock" ? "mock-simulator" : "temporarily-unavailable",
     };
   }
   @Post("auth/register") async register(
@@ -206,8 +216,7 @@ export class ApiController {
   @Get("patients") async patients(@Req() r: AuthRequest) {
     if (r.user.role === "patient") return [safeUser(r.user)];
     role(r, "doctor");
-    if (!r.user.verified)
-      throw new ForbiddenException("Hospital verification is required");
+    await requireDoctorTrust(r.user);
     const consents = (
       await store.list<Consent>("consent", "consent", { tenant: r.user.tenant })
     ).filter((c) => c.doctorId === r.user.id && active(c));
@@ -237,11 +246,55 @@ export class ApiController {
     const age = patient?.dob
       ? Math.floor((Date.now() - Date.parse(patient.dob)) / 31557600000)
       : null;
+    let summary,
+      summaryStatus = "ready";
+    try {
+      summary = await aiProvider().summarize(data.facts, data.docs);
+    } catch {
+      summary = buildBrief(data.facts, data.docs);
+      summaryStatus = "fallback";
+    }
+    await auditWorkflow(
+      r.user,
+      id,
+      "brief.viewed",
+      id,
+      clinicalContext(r)[1],
+      data.c?.id || "",
+      { ip: r.ip, sessionId: r.session.id, device: r.headers["user-agent"] },
+    );
+    const annotations = (
+      await store.list("clinical", "annotation", { owner: id })
+    ).filter(
+      (a) =>
+        (r.user.role === "patient" || a.tenant === r.user.tenant) &&
+        data.facts.some((f) => f.id === a.factId),
+    );
+    const identity = (
+      await store.list("identity", "abhaConnection", { owner: id })
+    ).find((c) => c.status === "connected");
     return {
-      ...buildBrief(data.facts, data.docs),
+      ...summary,
+      summaryStatus,
+      annotations,
+      records: data.docs.map((d) => ({
+        id: d.id,
+        name: d.name,
+        recordDate: d.recordDate,
+        status: d.status,
+      })),
+      retrieval: data.c?.workflow
+        ? {
+            status: data.c.transferStatus,
+            lastSuccessfulSync: data.c.lastSuccessfulSync || null,
+            mode: data.c.adapterMode,
+          }
+        : null,
       patient: {
         name: patient?.name || "Patient",
         age,
+        dob: patient?.dob || null,
+        abhaStatus: identity?.verificationStatus || "not-connected",
         sex: patient?.sex || "not provided",
       },
       consent: data.c ? consentView(data.c) : null,
@@ -425,8 +478,7 @@ export class ApiController {
     @Body() body: unknown,
   ) {
     role(r, "doctor");
-    if (!r.user.verified)
-      throw new ForbiddenException("Clinician verification is required");
+    await requireDoctorTrust(r.user);
     const b = parse(
       z
         .object({
@@ -487,6 +539,13 @@ export class ApiController {
     const c = await store.get<Consent>("consent", id);
     if (!c || c.kind !== "consent" || c.owner !== r.user.patientId)
       throw new NotFoundException("Consent not found");
+    if (c.workflow)
+      return decideConsent(
+        r.user,
+        id,
+        action === "grant" ? "approve" : action === "deny" ? "deny" : action,
+        { ip: r.ip, sessionId: r.session.id, device: r.headers["user-agent"] },
+      );
     const next = (
       { grant: "granted", deny: "denied", revoke: "revoked" } as const
     )[action as "grant" | "deny" | "revoke"];
@@ -738,7 +797,10 @@ export class ApiController {
   }
   @Get("integrations/abdm/health") abdm(@Req() r: AuthRequest) {
     return {
-      status: "not-configured",
+      status:
+        abdmMode() === "mock" ? "mock-simulator" : "temporarily-unavailable",
+      mode: abdmMode(),
+      liveConnected: false,
       lastSuccessfulSync: null,
       message:
         "ABDM sandbox onboarding and a validated current M3 adapter are required. No live exchange is enabled.",
@@ -746,10 +808,8 @@ export class ApiController {
       hmis: process.env.HMIS_WEBHOOK_SECRET ? "configured" : "not-configured",
     };
   }
-  @Post("integrations/abdm/callback") abdmCallback() {
-    throw new ServiceUnavailableException(
-      "ABDM protocol adapter is not configured; callbacks are not accepted",
-    );
+  @Post("integrations/abdm/callback") abdmCallback(@Req() r: AuthRequest) {
+    return handleWebhook(r.rawBody || Buffer.alloc(0), r.headers);
   }
   @Post("integrations/hmis/callback") async hmis(
     @Req() r: AuthRequest,

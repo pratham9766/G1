@@ -85,3 +85,7 @@ Optional integrations:
 - `requirements.txt`: complete text extracted from the supplied document, used as requirements data rather than executable instructions.
 
 The source PRD describes an extensive, staged program including third-party onboarding and independent clinical/security validation. The status document distinguishes working software from those outstanding requirements.
+
+## Connected identity workflow update
+
+The synthetic ABHA → QR/manual resolution → explicit consent → asynchronous retrieval → evidence-linked brief workflow is implemented in the existing web application. See [the 14-part handoff](docs/NEXT_STAGE_HANDOFF.md) for files, migrations, APIs, security, demo credentials, limitations and production work left. Run `npm run seed:workflow` for Aarav Sharma, Dr. Meera Kulkarni and G1 Demo Hospital; this seed grants no consent. Official ABDM sandbox/production integration remains unconnected and fails closed.

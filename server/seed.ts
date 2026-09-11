@@ -20,6 +20,9 @@ export async function seed() {
     tenant,
     name: "G1 Demonstration Hospital",
     status: "sandbox",
+    verified: true,
+    synthetic: true,
+    verificationProvider: "G1 synthetic simulator",
   });
   await store.put("identity", {
     id: randomUUID(),

@@ -8,7 +8,9 @@ export type FactType =
   | "procedure"
   | "implant"
   | "hospitalization"
-  | "observation";
+  | "observation"
+  | "immunization"
+  | "demographic";
 export interface Entity {
   id: string;
   owner: string;
@@ -35,7 +37,7 @@ export interface Consent extends Entity {
   fromDate: string;
   toDate: string;
   validUntil: string;
-  status: "requested" | "granted" | "denied" | "revoked";
+  status: "requested" | "granted" | "denied" | "revoked" | "expired" | "failed";
   createdAt: string;
 }
 export interface Evidence {
@@ -45,6 +47,8 @@ export interface Evidence {
   path?: string;
   span: string;
   sourceHash: string;
+  sourceDocument?: string;
+  sourceDate?: string;
 }
 export interface Fact extends Entity {
   patientId: string;

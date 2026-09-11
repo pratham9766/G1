@@ -105,7 +105,7 @@ test("hospital administration is separate from clinical viewing", async ({
   ).toBeVisible();
   await page.getByRole("button", { name: "Integrations", exact: true }).click();
   await expect(
-    page.getByText("Not configured", { exact: true }).first(),
+    page.getByText("Mock simulator", { exact: true }).first(),
   ).toBeVisible();
 });
 test("patient revocation removes clinician access on refresh", async ({

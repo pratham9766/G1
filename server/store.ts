@@ -1,9 +1,11 @@
+import { auditContext } from "./audit-context";
 import { DatabaseSync } from "node:sqlite";
 import { Pool } from "pg";
 import { resolve } from "node:path";
 import { randomUUID, createHmac } from "node:crypto";
 import { dataDir, seal, unseal, key } from "./security";
 import type { Entity } from "./types";
+import { workflowTables, migrationStatements } from "./migrations/002-workflow";
 type Domain = "identity" | "clinical" | "consent" | "audit";
 export class Store {
   private sqlite = new Map<Domain, DatabaseSync>();
@@ -16,7 +18,9 @@ export class Store {
       if (this.pool) await this.pool.query(`CREATE SCHEMA IF NOT EXISTS ${d}`);
       else {
         const db = new DatabaseSync(resolve(dataDir, `${d}.sqlite`));
-        db.exec("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;");
+        db.exec(
+          "PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON;",
+        );
         this.sqlite.set(d, db);
       }
       await this.run(
@@ -37,7 +41,30 @@ export class Store {
           .exec(
             "CREATE TRIGGER IF NOT EXISTS audit_no_update BEFORE UPDATE ON entities BEGIN SELECT RAISE(ABORT, 'audit is append only'); END; CREATE TRIGGER IF NOT EXISTS audit_no_delete BEFORE DELETE ON entities BEGIN SELECT RAISE(ABORT, 'audit is append only'); END;",
           );
+      for (const sql of migrationStatements(d, !!this.pool))
+        await this.run(d, sql);
+      for (const kind of Object.keys(workflowTables[d] || {}))
+        for (const entity of await this.list(d, kind))
+          await this.indexEntity(d, entity);
     }
+  }
+  private async indexEntity(d: Domain, entity: Entity) {
+    const t = workflowTables[d]?.[entity.kind];
+    if (!t) return;
+    const name = this.pool ? d + "." + t : t;
+    await this.run(
+      d,
+      "INSERT INTO " +
+        name +
+        "(id,owner_ref,tenant_ref,parent_id,created_at) VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET owner_ref=excluded.owner_ref,tenant_ref=excluded.tenant_ref,parent_id=excluded.parent_id",
+      [
+        entity.id,
+        entity.owner,
+        entity.tenant,
+        entity.parentId || null,
+        entity.createdAt || entity.receivedAt || new Date().toISOString(),
+      ],
+    );
   }
   private table(d: Domain) {
     return this.pool ? `${d}.entities` : "entities";
@@ -94,6 +121,7 @@ export class Store {
         seal(JSON.stringify(entity), this.encryption(d)),
       ],
     );
+    await this.indexEntity(d, entity);
     return entity;
   }
   async get<T extends Entity = Entity>(
@@ -127,6 +155,16 @@ export class Store {
     );
   }
   async remove(d: Exclude<Domain, "audit">, id: string) {
+    for (const table of Object.values(workflowTables[d] || {})) {
+      const name = this.pool ? d + "." + table : table;
+      for (const child of await this.run(
+        d,
+        "SELECT id FROM " + name + " WHERE parent_id=?",
+        [id],
+        true,
+      ))
+        if (child.id !== id) await this.remove(d, child.id);
+    }
     await this.run(d, `DELETE FROM ${this.table(d)} WHERE id=?`, [id]);
   }
   async audit(
@@ -173,6 +211,23 @@ export class Store {
           purpose,
           consentId,
           metadata,
+          actorRole:
+            auditContext.getStore()?.actorRole ||
+            metadata.actorRole ||
+            "service",
+          ip: auditContext.getStore()?.ip || metadata.ip || "unavailable",
+          sessionId:
+            auditContext.getStore()?.sessionId ||
+            metadata.sessionId ||
+            "system",
+          device:
+            auditContext.getStore()?.device || metadata.device || "unavailable",
+          resource:
+            metadata.resource ||
+            metadata.factId ||
+            metadata.documentId ||
+            consentId ||
+            patientId,
           timestamp: new Date().toISOString(),
           sequence: (prev?.sequence || 0) + 1,
           previousHash: prev?.hash || "GENESIS",

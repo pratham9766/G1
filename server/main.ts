@@ -1,4 +1,5 @@
 import "reflect-metadata";
+import { auditContext } from "./audit-context";
 import "dotenv/config";
 import { Module } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
@@ -14,7 +15,9 @@ import { authenticate } from "./auth";
 import { store } from "./store";
 import { production } from "./security";
 import { startProcessing, stopProcessing } from "./ingestion";
-@Module({ controllers: [ApiController] })
+import { WorkflowController } from "./workflow/controller";
+import { startWorkflow, stopWorkflow } from "./workflow/service";
+@Module({ controllers: [ApiController, WorkflowController] })
 class AppModule {}
 export async function bootstrap(port = Number(process.env.PORT || 3001)) {
   if (production)
@@ -117,7 +120,15 @@ export async function bootstrap(port = Number(process.env.PORT || 3001)) {
       ];
       if (!publicRoutes.includes(path))
         Object.assign(req, await authenticate(req));
-      next();
+      auditContext.run(
+        {
+          actorRole: req.user?.role || "anonymous",
+          ip: req.ip || "unavailable",
+          sessionId: req.session?.id || "none",
+          device: String(req.headers["user-agent"] || "").slice(0, 200),
+        },
+        () => next(),
+      );
     } catch (e: any) {
       res.status(e.getStatus?.() || 500).json({
         message: e.getStatus ? e.message : "Request could not be completed",
@@ -133,6 +144,7 @@ export async function bootstrap(port = Number(process.env.PORT || 3001)) {
     });
   }
   await startProcessing();
+  startWorkflow();
   await app.listen(port, process.env.HOST || "127.0.0.1");
   console.log(
     `G1 running at http://localhost:${port} (development; synthetic data only)`,
@@ -144,6 +156,7 @@ if (require.main === module)
     .then((app) => {
       for (const signal of ["SIGINT", "SIGTERM"])
         process.on(signal, async () => {
+          await stopWorkflow();
           await stopProcessing();
           await app.close();
           await store.close();

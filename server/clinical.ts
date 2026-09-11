@@ -2,6 +2,12 @@ import { randomUUID } from "node:crypto";
 import type { Fact, FactType, MedicalDocument } from "./types";
 export const EXTRACTOR_VERSION = "g1-deterministic-0.1.0";
 const categories: Record<string, FactType> = {
+  immunization: "immunization",
+  immunizations: "immunization",
+  surgery: "procedure",
+  vital: "observation",
+  vitals: "observation",
+  demographic: "demographic",
   allergy: "allergy",
   allergies: "allergy",
   medication: "medication",
@@ -42,7 +48,16 @@ export function makeFact(
     certainty: status === "suspected" ? "uncertain" : "source-stated",
     effectiveDate: date,
     confidence,
-    evidence: [{ documentId: d.id, ...location, span, sourceHash: d.hash }],
+    evidence: [
+      {
+        documentId: d.id,
+        ...location,
+        span,
+        sourceHash: d.hash,
+        sourceDocument: d.name,
+        sourceDate: d.recordDate,
+      },
+    ],
   };
 }
 export function context(text: string): Fact["status"] {
@@ -179,6 +194,15 @@ export function extractFhir(bundle: any, d: MedicalDocument): Fact[] {
         type = "hospitalization";
         value = codingText(r.type?.[0]) || "Recorded encounter";
         break;
+      case "Immunization":
+        type = "immunization";
+        value = codingText(r.vaccineCode);
+        break;
+      case "Patient":
+        if (!r.gender) return;
+        type = "demographic";
+        value = "Recorded sex: " + r.gender;
+        break;
       default:
         return;
     }
@@ -204,6 +228,7 @@ export function extractFhir(bundle: any, d: MedicalDocument): Fact[] {
         r.performedDateTime ||
         r.period?.start ||
         r.authoredOn ||
+        r.occurrenceDateTime ||
         d.recordDate,
     ).slice(0, 10);
     if (!value || value.length > 2000 || !/^\d{4}-\d{2}-\d{2}$/.test(date))
@@ -295,6 +320,19 @@ export function conflicts(facts: Fact[]) {
         a.value.toLowerCase() !== b.value.toLowerCase()
       )
         reason = "Blood group records disagree";
+      if (
+        a.type === "medication" &&
+        subject(a) === subject(b) &&
+        a.status !== b.status &&
+        [a.status, b.status].includes("historical")
+      )
+        reason = "Medication statuses differ; verify source and dates";
+      if (
+        a.type === "demographic" &&
+        a.label.split(":")[0] === b.label.split(":")[0] &&
+        a.value !== b.value
+      )
+        reason = "Conflicting source demographics detected";
       if (reason)
         result.push({
           id: `${a.id}:${b.id}`,
@@ -317,13 +355,22 @@ export function buildBrief(facts: Fact[], documents: MedicalDocument[]) {
           /warfarin|apixaban|rivaroxaban|dabigatran|insulin|heparin/i.test(
             f.value,
           )) ||
-        f.type === "condition",
+        f.type === "condition" ||
+        (["hospitalization", "procedure"].includes(f.type) &&
+          Date.now() - Date.parse(f.effectiveDate) < 30 * 86400000),
     )
     .filter(
       (f) => !["family-history", "ruled-out", "absent"].includes(f.status),
     );
   return {
     facts: unique,
+    activeMedications: unique.filter(
+      (f) => f.type === "medication" && f.status === "present",
+    ),
+    recentEvents: unique
+      .filter((f) => ["hospitalization", "procedure"].includes(f.type))
+      .sort((a, b) => b.effectiveDate.localeCompare(a.effectiveDate)),
+    importantLabs: unique.filter((f) => f.type === "observation"),
     critical,
     conflicts: issues,
     timeline: [...unique].sort((a, b) =>

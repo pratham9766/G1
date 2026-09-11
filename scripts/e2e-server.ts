@@ -8,12 +8,14 @@ async function main() {
   const { seed } = await import("../server/seed");
   const { store } = await import("../server/store");
   await seed();
+  await (await import("../server/workflow/seed")).seedWorkflow();
   await store.close();
   const { bootstrap } = await import("../server/main");
   const { stopProcessing } = await import("../server/ingestion");
   const app = await bootstrap(3100);
   for (const signal of ["SIGINT", "SIGTERM"])
     process.on(signal, async () => {
+      await (await import("../server/workflow/service")).stopWorkflow();
       await stopProcessing();
       await app.close();
       await store.close();

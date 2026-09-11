@@ -24,6 +24,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { Queue, Worker } from "bullmq";
 import { store } from "./store";
+import { normalizeClinicalEntities } from "./workflow/normalization";
 import { dataDir, hash, seal, unseal, production } from "./security";
 import { extractText, extractFhir, EXTRACTOR_VERSION } from "./clinical";
 import type { MedicalDocument, RecordType } from "./types";
@@ -224,7 +225,15 @@ export async function ingest(
   await enqueue(d);
   return d;
 }
-export async function processDocument(id: string) {
+const activeDocuments = new Map<string, Promise<void>>();
+export function processDocument(id: string): Promise<void> {
+  const existing = activeDocuments.get(id);
+  if (existing) return existing;
+  const job = processDocumentOnce(id).finally(() => activeDocuments.delete(id));
+  activeDocuments.set(id, job);
+  return job;
+}
+async function processDocumentOnce(id: string) {
   const d = await store.get<MedicalDocument>("clinical", id);
   if (!d || ["completed", "deleting"].includes(d.status)) return;
   d.status = "processing";
@@ -269,6 +278,7 @@ export async function processDocument(id: string) {
       } else pages = [bytes.toString("utf8")];
       facts = extractText(pages, d);
     }
+    facts = normalizeClinicalEntities(facts);
     // Stable per-document IDs make interrupted processing retries idempotent.
     for (let i = 0; i < facts.length; i++) {
       facts[i].id = hash(`${d.id}:${i}`);

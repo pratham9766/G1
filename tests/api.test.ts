@@ -52,6 +52,7 @@ before(async () => {
   app = await main.bootstrap(3099);
 });
 after(async () => {
+  await (await import("../server/workflow/service")).stopWorkflow();
   await stopProcessing();
   await app?.close();
   await store?.close();
@@ -70,6 +71,14 @@ test("complete patient/doctor consent, provenance, revocation and tenant isolati
   assert.equal(registration.status, 201);
   const patientId = registration.value.user.patientId;
   const tenant = randomUUID();
+  await store.put("identity", {
+    id: tenant,
+    kind: "hospital",
+    owner: tenant,
+    tenant,
+    verified: true,
+    name: "Test Hospital",
+  });
   const doctor = await createUser(
     "d@test.local",
     password,

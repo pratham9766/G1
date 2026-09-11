@@ -61,3 +61,9 @@ A functioning local development application has been implemented from an empty w
 6. Complete clinical review, independent security assessment, infrastructure validation and applicable onboarding before a tightly scoped hospital pilot.
 
 See `README.md` for runnable commands and synthetic accounts, `API.md` for route contracts, and `ARCHITECTURE.md` for the trust model and explicit limitations.
+
+## Connected identity workflow update
+
+Implemented the synthetic ABHA connection, signed identity QR, doctor trust checks, scoped explicit consent, asynchronous retrieval, evidence brief and SSE revocation in the existing web application. See [the detailed handoff](NEXT_STAGE_HANDOFF.md) for the complete 14-part delivery and production work left. Official ABDM integration is not connected; only synthetic data is supported.
+
+Validation completed: TypeScript/Vite build passed; 28 API/clinical tests passed; 6 Chrome browser tests passed; formatting check passed. Local additive migration 002 and the workflow demo seed completed successfully.

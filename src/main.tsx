@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, FormEvent } from "react";
 import { createRoot } from "react-dom/client";
 import {
+  QrCode,
   Activity,
   ArrowRight,
   ArrowUpRight,
@@ -60,6 +61,8 @@ const factTitles: Record<string, string> = {
   procedure: "Procedures",
   implant: "Implants",
   hospitalization: "Hospitalizations",
+  immunization: "Immunizations",
+  demographic: "Source demographics",
   observation: "Observations",
 };
 const nice = (s: string) =>
@@ -112,7 +115,19 @@ function Field({
     </label>
   );
 }
+import {
+  IdentityCard,
+  ScanPatient,
+  WorkflowConsents,
+  RecentAccess,
+  useWorkflowFeed,
+} from "./workflow";
 function App() {
+  const [initialRequest, setInitialRequest] = useState<any>(null);
+  const openWorkflow = (request: any) => {
+    setInitialRequest(request);
+    setView("brief");
+  };
   const [user, setUser] = useState<User | null>(null),
     [loading, setLoading] = useState(true),
     [view, setView] = useState("home"),
@@ -184,6 +199,7 @@ function App() {
       : user.role === "doctor"
         ? [
             ["brief", "Patient brief", HeartPulse],
+            ["scan", "Scan patient", QrCode],
             ["consents", "Access requests", ShieldCheck],
             ["audit", "Access history", History],
             ["privacy", "Account security", KeyRound],
@@ -318,7 +334,28 @@ function App() {
             <Overview user={user} navigate={setView} run={run} />
           )}
           {view === "records" && <Records run={run} notify={notify} />}
-          {view === "brief" && <Brief user={user} run={run} notify={notify} />}
+          {view === "brief" && (
+            <>
+              {user.role === "doctor" && (
+                <button
+                  className="primary scan-cta"
+                  onClick={() => setView("scan")}
+                >
+                  <QrCode size={17} />
+                  Scan Patient ABHA QR
+                </button>
+              )}
+              <Brief
+                user={user}
+                run={run}
+                notify={notify}
+                initialRequest={initialRequest}
+              />
+            </>
+          )}
+          {view === "scan" && user.role === "doctor" && (
+            <ScanPatient run={run} notify={notify} onOpen={openWorkflow} />
+          )}
           {view === "consents" && (
             <Consents user={user} run={run} notify={notify} />
           )}
@@ -564,6 +601,7 @@ function Overview({
           Upload a record
         </button>
       </Heading>
+      <IdentityCard run={run} />
       <section className="hero-card">
         <div>
           <Badge tone="light">
@@ -706,6 +744,7 @@ function Overview({
           </div>
         </section>
       </div>
+      <RecentAccess run={run} />
       <section className="panel activity-panel">
         <div className="panel-title">
           <div>
@@ -934,7 +973,13 @@ function Records({ run, notify }: Actions) {
     </>
   );
 }
-function Brief({ user, run, notify }: Actions & { user: User }) {
+function Brief({
+  user,
+  run,
+  notify,
+  initialRequest,
+}: Actions & { user: User; initialRequest?: any }) {
+  const workflowFeed = useWorkflowFeed();
   const requestVersion = useRef(0);
   const [patients, setPatients] = useState<any[]>([]),
     [selected, setSelected] = useState(user.patientId || ""),
@@ -950,8 +995,14 @@ function Brief({ user, run, notify }: Actions & { user: User }) {
         const p = await api("/patients");
         setPatients(p);
         if (p.length) {
-          setSelected(p[0].patientId);
-          setConsent(p[0].consents[0].id);
+          const target =
+            p.find((x: any) => x.patientId === initialRequest?.patientId) ||
+            p[0];
+          setSelected(target.patientId);
+          setConsent(
+            target.consents.find((c: any) => c.id === initialRequest?.id)?.id ||
+              target.consents[0].id,
+          );
         }
       });
     else setContext({});
@@ -996,6 +1047,14 @@ function Brief({ user, run, notify }: Actions & { user: User }) {
     }, 15000);
     return () => clearInterval(timer);
   }, [selected, consent]);
+  useEffect(() => {
+    const request = workflowFeed.requests.find((r: any) => r.id === consent);
+    if (workflowFeed.ended || (request && request.status !== "APPROVED")) {
+      requestVersion.current++;
+      setBrief(null);
+      setEvidence(null);
+    }
+  }, [workflowFeed.requests, workflowFeed.ended, consent]);
   const openEvidence = (f: any) =>
     run(async () => {
       const version = requestVersion.current;
@@ -1108,6 +1167,13 @@ function Brief({ user, run, notify }: Actions & { user: User }) {
       {brief && (
         <>
           <section className="brief-summary">
+            <Badge>
+              {brief.patient?.abhaStatus === "VERIFIED"
+                ? "ABHA verified"
+                : brief.patient?.abhaStatus === "MOCK_VERIFIED"
+                  ? "Demo identity · not NHA verified"
+                  : "ABHA not verified"}
+            </Badge>
             <div>
               <span className="large-icon">
                 <HeartPulse size={27} />
@@ -1296,6 +1362,10 @@ function Brief({ user, run, notify }: Actions & { user: User }) {
                       <span className="eyebrow">ORIGINAL SOURCE EXCERPT</span>
                       <blockquote>{e.span}</blockquote>
                       <dl>
+                        <dt>Source document</dt>
+                        <dd>{e.sourceDocument || "Source record"}</dd>
+                        <dt>Source date</dt>
+                        <dd>{e.sourceDate || "Not stated"}</dd>
                         <dt>Location</dt>
                         <dd>
                           {e.page ? `Page ${e.page}` : e.path || e.section}
@@ -1318,6 +1388,47 @@ function Brief({ user, run, notify }: Actions & { user: User }) {
               </aside>
             )}
           </div>
+          {brief.summaryStatus === "fallback" && (
+            <div className="message error">
+              Summary provider unavailable. Showing source-linked history;
+              original authorized records remain available.
+            </div>
+          )}
+          {mode === "detailed" && (
+            <section className="panel original-records">
+              <h2>Original Records</h2>
+              {brief.records?.map((record: any) => (
+                <div className="list-row" key={record.id}>
+                  <div className="grow">
+                    <strong>{record.name}</strong>
+                    <small>{date(record.recordDate)}</small>
+                  </div>
+                  <button
+                    className="secondary"
+                    onClick={() => run(() => downloadSource(record.id))}
+                  >
+                    View original record
+                  </button>
+                </div>
+              ))}
+              <h2>Clinical notes</h2>
+              {brief.annotations?.length ? (
+                brief.annotations.map((note: any) => (
+                  <div className="workflow-note" key={note.id}>
+                    <p>{note.note}</p>
+                    <small>
+                      Clinician annotation · {date(note.createdAt)} · original
+                      source unchanged
+                    </small>
+                  </div>
+                ))
+              ) : (
+                <p className="form-help">
+                  Use the plus button beside a fact to add a clinical note.
+                </p>
+              )}
+            </section>
+          )}
           <div className="method-note">
             <ShieldCheck size={16} />
             Structured extraction · {brief.versions.extractor} · No external AI
@@ -1343,6 +1454,13 @@ function FactRow({
     <div className="fact-row">
       <div className="grow">
         <strong>{f.value}</strong>
+        <small>
+          {f.confidence < 0.85
+            ? "Low-confidence extraction — verify source"
+            : f.certainty === "uncertain"
+              ? "Uncertain"
+              : "Verified from record · source stated, not clinically validated"}
+        </small>
         <div className="fact-meta">
           <Badge
             tone={
@@ -1395,7 +1513,10 @@ function FactRow({
 function Consents({ user, run, notify }: Actions & { user: User }) {
   const [items, setItems] = useState<any[]>([]),
     [busy, setBusy] = useState(false);
-  const load = () => run(async () => setItems(await api("/consents")));
+  const load = () =>
+    run(async () =>
+      setItems((await api("/consents")).filter((c: any) => !c.workflow)),
+    );
   useEffect(() => {
     load();
   }, []);
@@ -1428,6 +1549,7 @@ function Consents({ user, run, notify }: Actions & { user: User }) {
           Refresh requests
         </button>
       </Heading>
+      <WorkflowConsents user={user} run={run} notify={notify} />
       {user.role === "patient" && (
         <div className="reference-card">
           <UserRound size={20} />

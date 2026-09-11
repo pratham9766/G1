@@ -1,13 +1,20 @@
 import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { store } from "./store";
 import type { Consent, Fact, MedicalDocument, User } from "./types";
+import { requireDoctorTrust } from "./workflow/trust";
+import { allowsInformation, allowsWholeSource } from "./workflow/scopes";
+import { adapter, abdmMode } from "./workflow/adapters";
 export function active(c: Consent, now = Date.now()) {
   return c.status === "granted" && Date.parse(c.validUntil) > now;
 }
 export function inScope(c: Consent, d: MedicalDocument, f?: Fact) {
   const date = f?.effectiveDate || d.recordDate;
   return (
-    c.scope.includes(d.recordType) && date >= c.fromDate && date <= c.toDate
+    c.scope.includes(d.recordType) &&
+    date >= c.fromDate &&
+    date <= c.toDate &&
+    allowsInformation(c, d, f) &&
+    (!d.retrievalConsents || d.retrievalConsents.includes(c.id))
   );
 }
 export async function authorize(
@@ -18,6 +25,7 @@ export async function authorize(
 ): Promise<Consent | undefined> {
   if (user.disabled) throw new ForbiddenException("Account is disabled");
   if (user.role === "patient" && user.patientId === patientId) return;
+  if (user.role === "doctor") await requireDoctorTrust(user);
   const c = consentId
     ? await store.get<Consent>("consent", consentId)
     : undefined;
@@ -42,6 +50,21 @@ export async function authorize(
     throw new ForbiddenException(
       "Active consent with matching purpose, scope and hospital affiliation is required",
     );
+  }
+  if (c.workflow) {
+    const connection = await store.get("identity", c.connectionId);
+    if (
+      !connection ||
+      connection.status !== "connected" ||
+      c.adapterMode !== abdmMode()
+    )
+      throw new ForbiddenException("Consent status cannot be verified");
+    try {
+      if ((await adapter().getConsentStatus(c as any)) !== "APPROVED")
+        throw new Error();
+    } catch {
+      throw new ForbiddenException("Consent status cannot be verified");
+    }
   }
   return c;
 }
@@ -76,7 +99,17 @@ export async function authorizedFacts(
     c?.id || "",
     { factCount: facts.length },
   );
-  return { c, facts, docs: docs.filter((d) => !c || inScope(c, d)) };
+  return {
+    c,
+    facts,
+    docs: docs.filter(
+      (d) =>
+        !c ||
+        (inScope(c, d) &&
+          (!c.requestedScopes ||
+            facts.some((f) => f.evidence.some((e) => e.documentId === d.id)))),
+    ),
+  };
 }
 export async function requireDocument(
   user: User,
@@ -93,6 +126,7 @@ export async function requireDocument(
     });
     if (
       !inScope(c, d) ||
+      !allowsWholeSource(c, d) ||
       facts
         .filter((f) => f.evidence.some((e) => e.documentId === d.id))
         .some((f) => !inScope(c, d, f))
