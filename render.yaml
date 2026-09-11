@@ -1,0 +1,33 @@
+# Review Render's displayed price before creating this paid persistent service.
+services:
+  - type: web
+    name: g1-synthetic-demo
+    runtime: node
+    plan: 0.5c-512mb
+    region: singapore
+    numInstances: 1
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm run start:demo
+    healthCheckPath: /api/v1/health
+    autoDeployTrigger: off
+    disk:
+      name: g1-demo-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: 22.20.0
+      - key: NODE_ENV
+        value: development
+      - key: HOST
+        value: 0.0.0.0
+      - key: G1_HOSTED_DEMO
+        value: "true"
+      - key: ABDM_MODE
+        value: mock
+      - key: CLINICAL_AI_PROVIDER
+        value: local
+      - key: DATA_DIR
+        value: /opt/render/project/src/data
+      - key: G1_DEMO_MASTER_KEY
+        generateValue: true
