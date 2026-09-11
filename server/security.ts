@@ -11,7 +11,7 @@ import {
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 export const hostedDemo = process.env.G1_HOSTED_DEMO === "true";
-export const production = process.env.NODE_ENV === "production";
+export const production = process.env.NODE_ENV === "production" && !hostedDemo;
 export const dataDir = resolve(process.env.DATA_DIR || "./data");
 mkdirSync(dataDir, { recursive: true });
 const keyFile = resolve(dataDir, "development-keys.json");

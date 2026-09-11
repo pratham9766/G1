@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { configureHostedDemo } from "../server/hosted-config";
+process.env.G1_RUNTIME_PROFILE = "hosted-demo";
 async function main() {
   configureHostedDemo();
   const { bootstrap } = await import("../server/main");

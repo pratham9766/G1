@@ -2,8 +2,6 @@ import { createHmac } from "node:crypto";
 export function configureHostedDemo(env: NodeJS.ProcessEnv = process.env) {
   if (env.G1_HOSTED_DEMO !== "true")
     throw new Error("Hosted demo mode must be explicit");
-  if (env.NODE_ENV === "production")
-    throw new Error("Real production remains gated");
   if (env.ABDM_MODE !== "mock" || env.CLINICAL_AI_PROVIDER !== "local")
     throw new Error(
       "Hosted demo requires mock ABDM and local clinical processing",
@@ -29,6 +27,7 @@ export function configureHostedDemo(env: NodeJS.ProcessEnv = process.env) {
       "This demo profile uses one instance with a persistent local disk",
     );
   env.APP_ORIGIN = url.origin;
+  env.G1_RUNTIME_PROFILE = "hosted-demo";
   env.NODE_ENV = "development";
   for (const domain of ["IDENTITY", "CLINICAL", "AUDIT", "LOOKUP"])
     env[domain + "_KEY"] = createHmac("sha256", secret)
