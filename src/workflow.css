@@ -27,7 +27,7 @@
   margin: 22px 0;
 }
 .workflow-details dt {
-  color: #72857a;
+  color: #64748b;
 }
 .workflow-details dd {
   margin: 0;
@@ -42,10 +42,10 @@
 }
 .workflow-dialog {
   padding: 0;
-  border: 1px solid #d6e5da;
+  border: 1px solid #e2e8f0;
   border-radius: 12px;
   width: min(570px, calc(100vw - 30px));
-  color: #294c3a;
+  color: #0f172a;
   max-height: 90vh;
 }
 .workflow-dialog::backdrop {
@@ -72,7 +72,7 @@
   gap: 18px;
 }
 .workflow-request-details dt {
-  color: #7e8f82;
+  color: #64748b;
   font-size: 10px;
   margin-bottom: 7px;
 }
@@ -100,14 +100,14 @@
 }
 .workflow-skeleton {
   height: 100px;
-  background: linear-gradient(100deg, #eaf0ec, #f5f8f6, #eaf0ec);
+  background: linear-gradient(100deg, #f1f5f9, #f1f5f9, #f1f5f9);
   border-radius: 9px;
   margin: 20px;
   opacity: 0.8;
 }
 .qr-video {
   display: block;
-  background: #152b20;
+  background: #0f172a;
   width: min(100%, 520px);
   max-height: 350px;
   margin: 20px auto;
@@ -135,16 +135,16 @@
 }
 .workflow-notes {
   padding: 18px;
-  border-top: 1px solid #e4eae8;
+  border-top: 1px solid #e2e8f0;
 }
 .workflow-notes h3 {
   font-size: 13px;
 }
 .workflow-note {
-  border-left: 3px solid #b6cebd;
+  border-left: 3px solid #64748b;
   padding: 10px 14px;
   margin: 12px 0;
-  background: #f7faf8;
+  background: #f8fafc;
 }
 .workflow-note p {
   font-size: 12px;
@@ -168,7 +168,7 @@
     padding: 20px;
   }
   .identity-qr {
-    border-top: 1px solid #e1ebe4;
+    border-top: 1px solid #e2e8f0;
     padding-top: 20px;
   }
   .workflow-details {

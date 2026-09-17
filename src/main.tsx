@@ -122,6 +122,7 @@ import {
   RecentAccess,
   useWorkflowFeed,
 } from "./workflow";
+import "./clinical-theme.css";
 function App() {
   const [initialRequest, setInitialRequest] = useState<any>(null);
   const openWorkflow = (request: any) => {
